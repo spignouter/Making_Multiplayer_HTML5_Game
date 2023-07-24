@@ -38,6 +38,10 @@ const Entity = function () {
     self.x += self.spdX
     self.y += self.spdY
   }
+  self.getDistance = function (pt) {
+    return Math.sqrt(Math.pow(self.x - pt.x, 2) + Math.pow(self.y - pt.y, 2))
+  }
+
   return self
 }
 
@@ -50,6 +54,9 @@ const Player = function (id) {
   self.pressingLeft = false
   self.pressingUp = false
   self.pressingDown = false
+  self.pressingAttack = false
+  self.mouseAngle = 0
+
   self.maxSpd = 10
 
   const super_update = self.update
@@ -57,6 +64,15 @@ const Player = function (id) {
   self.update = function () {
     self.updateSpd()
     super_update()
+    if (self.pressingAttack) {
+      for (let i = -3; i < 3; i++) self.shootBullet(i * 10 + self.mouseAngle)
+    }
+  }
+
+  self.shootBullet = function (angle) {
+    const b = Bullet(self.id, angle)
+    b.x = self.x
+    b.y = self.y
   }
 
   self.updateSpd = function () {
@@ -84,6 +100,8 @@ Player.onConnect = function (socket) {
     else if (data.inputId === 'right') player.pressingRight = data.state
     else if (data.inputId === 'up') player.pressingUp = data.state
     else if (data.inputId === 'down') player.pressingDown = data.state
+    else if (data.inputId === 'attack') player.pressingAttack = data.state
+    else if (data.inputId === 'mouseAngle') player.mouseAngle = data.state
   })
 }
 
@@ -105,18 +123,25 @@ Player.update = function () {
   return pack
 }
 
-const Bullet = function (angle) {
+const Bullet = function (parent, angle) {
   const self = Entity()
   self.id = Math.random()
   self.spdX = Math.cos((angle / 180) * Math.PI) * 10
   self.spdY = Math.sin((angle / 180) * Math.PI) * 10
-
+  self.parent = parent
   self.timer = 0
   self.toRemove = false
   const super_update = self.update
   self.update = function () {
     if (self.timer++ > 100) self.toRemove = true
     super_update()
+    for (let i in Player.list) {
+      const p = Player.list[i]
+      if (self.getDistance(p) < 32 && self.parent !== p.id) {
+        // handle collision. ex: hp--;
+        self.toRemove = true
+      }
+    }
   }
   Bullet.list[self.id] = self
   return self
@@ -125,18 +150,16 @@ const Bullet = function (angle) {
 Bullet.list = {}
 
 Bullet.update = function () {
-  if (Math.random() < 0.1) {
-    Bullet(Math.random() * 360)
-  }
-
   const pack = []
   for (let i in Bullet.list) {
     const bullet = Bullet.list[i]
     bullet.update()
-    pack.push({
-      x: bullet.x,
-      y: bullet.y,
-    })
+    if (bullet.toRemove) delete Bullet.list[i]
+    else
+      pack.push({
+        x: bullet.x,
+        y: bullet.y,
+      })
   }
   return pack
 }
