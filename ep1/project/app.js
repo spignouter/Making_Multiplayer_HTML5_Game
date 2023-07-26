@@ -166,6 +166,33 @@ Bullet.update = function () {
 
 const DEBUG = true
 
+const USERS = {
+  // username:password
+  bob: 'asd',
+}
+
+//
+const isValidPassword = function (data, cb) {
+  setTimeout(function () {
+    cb(USERS[data.username] === data.password)
+  }, 10)
+}
+
+//
+const isUsernameTaken = function (data, cb) {
+  setTimeout(function () {
+    cb(USERS[data.username])
+  }, 10)
+}
+
+const addUsername = function (data, cb) {
+  setTimeout(function () {
+    USERS[data.username] = data.password
+    cb()
+  }, 10)
+}
+
+//
 io.sockets.on('connection', function (socket) {
   // при соединение клиента генерируется случайное число, это число условно является именем клиента.
   socket.id = Math.random()
@@ -174,8 +201,40 @@ io.sockets.on('connection', function (socket) {
   // Видимо объект socket хранит соединение клиента.
   SOCKET_LIST[socket.id] = socket
 
+  // этот момент не понятен
+  socket.on('signIn', function (data) {
+    isValidPassword(data, function (res) {
+      //
+      if (res) {
+        Player.onConnect(socket)
+        socket.emit('signInResponse', {
+          success: true,
+        })
+      } else {
+        socket.emit('signInResponse', {
+          success: false,
+        })
+      }
+    })
+  })
+
   //
-  Player.onConnect(socket)
+  socket.on('signUp', function (data) {
+    isUsernameTaken(data, function (res) {
+      //
+      if (res) {
+        socket.emit('signUpResponse', {
+          success: false,
+        })
+      } else {
+        addUsername(data, function (res) {
+          socket.emit('signUpResponse', {
+            success: true,
+          })
+        })
+      }
+    })
+  })
 
   // Удаление клиента из списка. событие disconnect происходит автоматически.
   socket.on('disconnect', function () {
