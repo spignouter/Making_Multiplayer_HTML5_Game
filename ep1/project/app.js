@@ -1,3 +1,10 @@
+// mongoDB
+const mongojs = require('mongojs')
+
+//
+const db = mongojs('localhost:27017/myGame', ['account', 'progress'])
+db.account.insert({ username: 'b', password: 'bb' })
+
 // express
 const express = require('express')
 const app = express()
@@ -65,7 +72,7 @@ const Player = function (id) {
     self.updateSpd()
     super_update()
     if (self.pressingAttack) {
-      for (let i = -3; i < 3; i++) self.shootBullet(i * 10 + self.mouseAngle)
+      for (let i = 0; i < 1; i++) self.shootBullet(i * 10 + self.mouseAngle)
     }
   }
 
@@ -173,23 +180,30 @@ const USERS = {
 
 //
 const isValidPassword = function (data, cb) {
-  setTimeout(function () {
-    cb(USERS[data.username] === data.password)
-  }, 10)
+  db.account.find(
+    { username: data.username, password: data.password },
+    function (err, res) {
+      if (res.length > 0) cb(true)
+      else cb(false)
+    }
+  )
 }
 
 //
 const isUsernameTaken = function (data, cb) {
-  setTimeout(function () {
-    cb(USERS[data.username])
-  }, 10)
+  db.account.find({ username: data.username }, function (err, res) {
+    if (res.length > 0) cb(true)
+    else cb(false)
+  })
 }
 
 const addUsername = function (data, cb) {
-  setTimeout(function () {
-    USERS[data.username] = data.password
-    cb()
-  }, 10)
+  db.account.insert(
+    { username: data.username, password: data.password },
+    function (err) {
+      cb()
+    }
+  )
 }
 
 //
